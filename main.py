@@ -7,7 +7,14 @@ from decouple import config
 
 prompt = PromptTemplate(
     input_variables=["chat_history", "question"],
-    template="""test"""
+    template="""You are a kind AI agent, your are currently talking\
+                answer him/her in a friendly tone and also have some sense of humor\
+                    
+                chat_history : {chat_history}
+                
+                Human : {question}
+                
+                AI"""
 )
 
 llm = ChatOpenAI(openai_api_key=config("OPENAI_API_KEY"))
