@@ -1,57 +1,69 @@
+# python 3.8 (3.8.16) or it doesn't work
+# pip install streamlit streamlit-chat langchain python-dotenv
 import streamlit as st
+from streamlit_chat import message
+from dotenv import load_dotenv
+import os
+
 from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferWindowMemory
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
-from decouple import config
-
-prompt = PromptTemplate(
-    input_variables=["chat_history", "question"],
-    template="""You are a kind AI agent, your are currently talking\
-                answer him/her in a friendly tone and also have some sense of humor\
-                    
-                chat_history : {chat_history}
-                
-                Human : {question}
-                
-                AI"""
+from langchain.schema import (
+    SystemMessage,
+    HumanMessage,
+    AIMessage
 )
 
-llm = ChatOpenAI(openai_api_key=config("OPENAI_API_KEY"))
-memory = ConversationBufferWindowMemory(memory_key="chat_history", k=5)
-llm_chain = LLMChain(
-    llm=llm,
-    memory=memory,
-    prompt=prompt
-)
 
-st.set_page_config(
-    page_title="RafiGPT-1.0",
-    layout="wide"
-)
-
-st.title("RafiGPT-1.0")
-
-if "messages" not in st.session_state.keys():
-    st.session_state.messages = [
-        {"role" : "assistant", "content" : "Hello there!"}
-        ]
+def init():
+    # Load the OpenAI API key from the environment variable
+    load_dotenv()
     
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.write(message["content"])
-        
-user_prompt = st.chat_input()
+    # test that the API key exists
+    if os.getenv("OPENAI_API_KEY") is None or os.getenv("OPENAI_API_KEY") == "":
+        print("OPENAI_API_KEY is not set")
+        exit(1)
+    else:
+        print("OPENAI_API_KEY is set")
 
-if user_prompt is not None:
-    st.session_state.messages.append({"role" : "assistant", "content" : "Hello there!"})
-    with st.chat_message("user"):
-        st.write(user_prompt)
+    # setup streamlit page
+    st.set_page_config(
+        page_title="RafiGPT-1.0",
+        page_icon="🤖"
+    )
 
-if st.session_state.messages[-1]["role"] != "assistant":
-    with st.chat_message("assistant"):
-        with st.spinner("Loading...."):
-            ai_response = llm_chain.predict(question=user_prompt)
-            st.write(ai_response)
-    new_ai_message = {"role" : "assistant", "content" : ai_response}
-    st.session_state.messages.append(new_ai_message)
+
+def main():
+    init()
+
+    chat = ChatOpenAI(temperature=0)
+
+    # initialize message history
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            SystemMessage(content="You are a helpful assistant.")
+        ]
+
+    st.header("RafiGPT-1.0")
+
+    # sidebar with user input
+    with st.sidebar:
+        user_input = st.text_input("Ayo bicara denganku: ", key="user_input")
+
+        # handle user input
+        if user_input:
+            st.session_state.messages.append(HumanMessage(content=user_input))
+            with st.spinner("Thinking..."):
+                response = chat(st.session_state.messages)
+            st.session_state.messages.append(
+                AIMessage(content=response.content))
+
+    # display message history
+    messages = st.session_state.get('messages', [])
+    for i, msg in enumerate(messages[1:]):
+        if i % 2 == 0:
+            message(msg.content, is_user=True, key=str(i) + '_user')
+        else:
+            message(msg.content, is_user=False, key=str(i) + '_ai')
+
+
+if __name__ == '__main__':
+    main()
