@@ -16,7 +16,7 @@ def init():
     load_dotenv()
     
     # test that the API key exists
-    if os.getenv("OPENAI_API_KEY") is None or os.getenv("OPENAI_API_KEY") == "":
+    if os.getenv("OPENAI_API_KEY") is None or os.getenv("OPENAI_API_KEY") == "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":
         print("OPENAI_API_KEY is not set")
         exit(1)
     else:
