@@ -1,37 +1,57 @@
-from openai import OpenAI
 import streamlit as st
+from langchain.chat_models import ChatOpenAI
+from langchain.memory import ConversationBufferWindowMemory
+from langchain.chains import LLMChain
+from langchain.prompts import PromptTemplate
+from decouple import config
 
-st.title("ChatGPT-like clone")
+prompt = PromptTemplate(
+    input_variables=["chat_history", "question"],
+    template="""You are a kind AI agent, your are currently talking\
+                answer him/her in a friendly tone and also have some sense of humor\
+                    
+                chat_history : {chat_history}
+                
+                Human : {question}
+                
+                AI"""
+)
 
-client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+llm = ChatOpenAI(openai_api_key=config("OPENAI_API_KEY"))
+memory = ConversationBufferWindowMemory(memory_key="chat_history", k=5)
+llm_chain = LLMChain(
+    llm=llm,
+    memory=memory,
+    prompt=prompt
+)
 
-if "openai_model" not in st.session_state:
-    st.session_state["openai_model"] = "gpt-3.5-turbo"
+st.set_page_config(
+    page_title="RafiGPT-1.0",
+    layout="wide"
+)
 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+st.title("RafiGPT-1.0")
 
+if "messages" not in st.session_state.keys():
+    st.session_state.messages = [
+        {"role" : "assistant", "content" : "Hello there!"}
+        ]
+    
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+        st.write(message["content"])
+        
+user_prompt = st.chat_input()
 
-if prompt := st.chat_input("What is up?"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+if user_prompt is not None:
+    st.session_state.messages.append({"role" : "assistant", "content" : "Hello there!"})
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.write(user_prompt)
 
+if st.session_state.messages[-1]["role"] != "assistant":
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        for response in client.chat.completions.create(
-            model=st.session_state["openai_model"],
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        ):
-            full_response += (response.choices[0].delta.content or "")
-            message_placeholder.markdown(full_response + "▌")
-        message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+        with st.spinner("Loading...."):
+            ai_response = llm_chain.predict(question=user_prompt)
+            st.write(ai_response)
+    new_ai_message = {"role" : "assistant", "content" : ai_response}
+    st.session_state.messages.append(new_ai_message)
